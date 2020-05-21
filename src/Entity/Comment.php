@@ -1,0 +1,174 @@
+<?php
+
+namespace App\Entity;
+
+use ApiPlatform\Core\Annotation\ApiProperty;
+use ApiPlatform\Core\Annotation\ApiResource;
+use App\Repository\CommentRepository;
+use Doctrine\ORM\Mapping as ORM;
+use Symfony\Component\Security\Core\User\UserInterface;
+use Symfony\Component\Serializer\Annotation\Groups;
+use Symfony\Component\Validator\Constraints as Assert;
+
+/**
+ * @ApiResource(
+ *     attributes={
+ *          "order"={"published": "DESC"},
+ *          "pagination_client_enabled"=true,
+ *          "pagination_client_items_per_page"=true
+ *     },
+ *     itemOperations={
+ *         "get",
+ *         "put"={
+ *             "access_control"="is_granted('ROLE_EDITOR') or (is_granted('ROLE_COMMENTATOR') and object.getAuthor() == user)"
+ *         }
+ *     },
+ *     collectionOperations={
+ *         "get",
+ *         "post"={
+ *             "access_control"="is_granted('ROLE_COMMENTATOR')"
+ *         }
+ *     },
+ *     subresourceOperations={
+ *          "api_blog_posts_comments_get_subresource"={
+ *             "normalization_context"={
+ *                  "groups"={"get-comment-with-author"}
+ *              }
+ *         }
+ *     },
+ *     denormalizationContext={
+ *         "groups"={"post"}
+ *     }
+ * )
+ * @ORM\Entity(repositoryClass=CommentRepository::class)
+ */
+class Comment implements AuthoredEntityInterface, PublishedDateEntityInterface
+{
+    /**
+     * @ORM\Id()
+     * @ORM\GeneratedValue()
+     * @ORM\Column(type="integer")
+     * @Groups({"get-comment-with-author"})
+     */
+    private $id;
+
+    /**
+     * @ORM\Column(type="text")
+     * @Groups({"post", "get-comment-with-author"})
+     * @Assert\NotBlank()
+     * @Assert\Length(min=5, max="3000")
+     */
+    private $content;
+
+    /**
+     * @ORM\Column(type="datetime")
+     * @Groups({"get-comment-with-author"})
+     */
+    private $published;
+
+    /**
+     * @ORM\ManyToOne(targetEntity="App\Entity\User", inversedBy="comments")
+     * @ORM\JoinColumn(nullable=false)
+     * @Groups({"get-comment-with-author"})
+     */
+    private $author;
+
+    /**
+     * @ORM\ManyToOne(targetEntity="App\Entity\BlogPost", inversedBy="comments")
+     * @ORM\JoinColumn(nullable=false)
+     * @Groups({"post"})
+     */
+    private $blogPost;
+
+    /**
+     * @return int|null
+     */
+    public function getId(): ?int
+    {
+        return $this->id;
+    }
+
+    /**
+     * @return string|null
+     */
+    public function getContent(): ?string
+    {
+        return $this->content;
+    }
+
+    /**
+     * @param string $content
+     * @return $this
+     */
+    public function setContent(string $content): self
+    {
+        $this->content = $content;
+
+        return $this;
+    }
+
+    /**
+     * @return \DateTimeInterface|null
+     */
+    public function getPublished(): ?\DateTimeInterface
+    {
+        return $this->published;
+    }
+
+    /**
+     * @param \DateTimeInterface $published
+     * @return $this|PublishedDateEntityInterface
+     */
+    public function setPublished(\DateTimeInterface $published): PublishedDateEntityInterface
+    {
+        $this->published = $published;
+
+        return $this;
+    }
+
+    /**
+     * @return mixed
+     */
+    public function getAuthor(): ?UserInterface
+    {
+        return $this->author;
+    }
+
+    /**
+     * @param UserInterface $author
+     * @return $this
+     */
+    public function setAuthor(UserInterface $author): ?AuthoredEntityInterface
+    {
+        $this->author = $author;
+
+        return $this;
+    }
+
+    /**
+     * @return mixed
+     */
+    public function getBlogPost()
+    {
+        return $this->blogPost;
+    }
+
+    /**
+     * @param $blogPost
+     * @return $this
+     */
+    public function setBlogPost($blogPost)
+    {
+        $this->blogPost = $blogPost;
+
+        return $this;
+    }
+
+    /**
+     * @return string
+     */
+    public function __toString()
+    {
+        return $this->getContent() ? substr($this->getContent(), 0, 20) . '...' : '';
+    }
+}
